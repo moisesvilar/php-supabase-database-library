@@ -2,10 +2,10 @@
 
 use DatabaseLibrary\Utils\EnvLoader;
 
-// Cargar variables de entorno
+// Load environment variables
 EnvLoader::load();
 
-// Configuración usando variables de entorno
+// Configuration using environment variables
 return [
     'supabase' => [
         'host' => EnvLoader::get('SUPABASE_HOST', 'localhost'),

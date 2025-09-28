@@ -1,27 +1,32 @@
 <?php
 
-// Configuración específica para tu proyecto Supabase
+use DatabaseLibrary\Utils\EnvLoader;
+
+// Cargar variables de entorno
+EnvLoader::load();
+
+// Configuración usando variables de entorno
 return [
     'supabase' => [
-        'host' => 'db.dpcrrmhfgedsoufmdcgq.supabase.co',
-        'port' => '5432',
-        'database' => 'postgres',
-        'username' => 'postgres',
-        'password' => 'Supabase.1184.1983',
-        'ssl_mode' => 'require',
-        'timeout' => 30,
-        'connect_timeout' => 10,
-        'application_name' => 'DatabaseLibrary',
+        'host' => EnvLoader::get('SUPABASE_HOST', 'localhost'),
+        'port' => EnvLoader::get('SUPABASE_PORT', '5432'),
+        'database' => EnvLoader::get('SUPABASE_DATABASE', 'postgres'),
+        'username' => EnvLoader::get('SUPABASE_USERNAME', 'postgres'),
+        'password' => EnvLoader::required('SUPABASE_PASSWORD'),
+        'ssl_mode' => EnvLoader::get('SUPABASE_SSL_MODE', 'require'),
+        'timeout' => EnvLoader::int('SUPABASE_TIMEOUT', 30),
+        'connect_timeout' => EnvLoader::int('SUPABASE_CONNECT_TIMEOUT', 10),
+        'application_name' => EnvLoader::get('APP_NAME', 'DatabaseLibrary'),
     ],
     'project' => [
-        'url' => 'https://dpcrrmhfgedsoufmdcgq.supabase.co',
-        'name' => 'Moises Vilar Org',
+        'url' => EnvLoader::get('SUPABASE_PROJECT_URL'),
+        'name' => EnvLoader::get('SUPABASE_PROJECT_NAME', 'Database Project'),
     ],
     'logging' => [
-        'file' => 'database.log',
-        'level' => 'INFO',
-        'enabled' => true,
-        'max_size' => 10485760, // 10MB
-        'max_files' => 5,
+        'file' => EnvLoader::get('LOG_FILE', 'database.log'),
+        'level' => EnvLoader::get('LOG_LEVEL', 'INFO'),
+        'enabled' => EnvLoader::bool('LOG_ENABLED', true),
+        'max_size' => EnvLoader::int('LOG_MAX_SIZE', 10485760), // 10MB
+        'max_files' => EnvLoader::int('LOG_MAX_FILES', 5),
     ]
 ];

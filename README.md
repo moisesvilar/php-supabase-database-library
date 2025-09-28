@@ -10,62 +10,91 @@ A vanilla PHP library for SQL database management with Supabase implementation. 
 - ✅ **Advanced Query Builder** - Fluent interface for building complex queries
 - ✅ **Supabase-Specific Features** - Full-text search, geographic filters, JSON operations
 - ✅ **Security First** - SQL injection protection with prepared statements
+- ✅ **Environment Variables** - Secure credential management
 - ✅ **Integrated Logging** - Automatic query logging with execution times
 - ✅ **Flexible Configuration** - Multiple configuration methods
 - ✅ **PHP 8.4+ Compatible** - Modern PHP features and syntax
 
 ## Installation
 
+### Step 1: Install Dependencies
+
 ```bash
 composer install
 ```
 
+### Step 2: Configure Environment
+
+```bash
+# Copy environment template
+cp env.example .env
+
+# Edit with your Supabase credentials
+nano .env
+```
+
+### Step 3: Set Your Supabase Credentials
+
+Edit `.env` file with your real credentials:
+
+```env
+SUPABASE_HOST=db.your-project-ref.supabase.co
+SUPABASE_PASSWORD=your-database-password
+SUPABASE_URL=postgresql://postgres:your-password@db.your-project-ref.supabase.co:5432/postgres
+```
+
+### Step 4: Test Installation
+
+```bash
+php example_supabase.php
+```
+
+📖 **For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md)**
+
 ## Quick Start
 
-### Basic Connection
+### Basic Connection with Environment Variables
 
 ```php
-use DatabaseLibrary\DatabaseManager;
+<?php
+require_once 'vendor/autoload.php';
 
-// Create Supabase connection
-$db = DatabaseManager::createSupabaseConnection(
-    'your-supabase-host',
-    '5432',
-    'postgres',
-    'postgres',
-    'your-password'
+use DatabaseLibrary\DatabaseManager;
+use DatabaseLibrary\Utils\EnvLoader;
+
+// Load environment variables
+EnvLoader::load();
+
+// Create connection from environment
+$db = DatabaseManager::createSupabaseFromUrl(
+    EnvLoader::required('SUPABASE_URL'),
+    EnvLoader::required('SUPABASE_PASSWORD')
 );
 
-// Connect
+// Connect and use
 $db->connect();
-
-// Execute query
 $users = $db->executeQuery('SELECT * FROM users WHERE active = ?', [true]);
-
-// Disconnect
 $db->disconnect();
 ```
 
-### From Supabase URL
+### Alternative Connection Methods
 
 ```php
-$supabaseUrl = 'postgresql://postgres:[password]@db.example.supabase.co:5432/postgres';
-$db = DatabaseManager::createSupabaseFromUrl($supabaseUrl, 'your-password');
-$db->connect();
-```
+// Method 1: Direct connection
+$db = DatabaseManager::createSupabaseConnection(
+    EnvLoader::get('SUPABASE_HOST'),
+    EnvLoader::get('SUPABASE_PORT', '5432'),
+    EnvLoader::get('SUPABASE_DATABASE', 'postgres'),
+    EnvLoader::get('SUPABASE_USERNAME', 'postgres'),
+    EnvLoader::required('SUPABASE_PASSWORD')
+);
 
-### From Environment Variables
+// Method 2: From configuration file
+$config = require 'config.php'; // Uses environment variables internally
+$db = DatabaseManager::createSupabaseFromConfig(Config::fromArray($config['supabase']));
 
-```php
-// Set environment variables
-$_ENV['DB_HOST'] = 'your-host';
-$_ENV['DB_PORT'] = '5432';
-$_ENV['DB_DATABASE'] = 'postgres';
-$_ENV['DB_USERNAME'] = 'postgres';
-$_ENV['DB_PASSWORD'] = 'your-password';
-
+// Method 3: From system environment
 $db = DatabaseManager::createFromEnvironment();
-$db->connect();
 ```
 
 ## CRUD Operations
@@ -73,7 +102,13 @@ $db->connect();
 ### Read (SELECT)
 
 ```php
-// Basic query
+// Basic query with environment-based connection
+$db = DatabaseManager::createSupabaseFromUrl(
+    EnvLoader::required('SUPABASE_URL'),
+    EnvLoader::required('SUPABASE_PASSWORD')
+);
+$db->connect();
+
 $users = $db->executeQuery('SELECT * FROM users WHERE active = ?', [true]);
 
 // With Query Builder
@@ -209,6 +244,63 @@ $query = $supabaseBuilder
 $products = $db->executeQuery($query, $supabaseBuilder->getParams());
 ```
 
+## Environment Variables
+
+### Required Variables
+
+```env
+# Required for connection
+SUPABASE_HOST=db.your-project-ref.supabase.co
+SUPABASE_PASSWORD=your-database-password
+SUPABASE_URL=postgresql://postgres:your-password@db.your-project-ref.supabase.co:5432/postgres
+```
+
+### Optional Variables
+
+```env
+# Database configuration
+SUPABASE_PORT=5432
+SUPABASE_DATABASE=postgres
+SUPABASE_USERNAME=postgres
+SUPABASE_SSL_MODE=require
+
+# Connection timeouts
+SUPABASE_TIMEOUT=30
+SUPABASE_CONNECT_TIMEOUT=10
+
+# Logging configuration
+LOG_ENABLED=true
+LOG_LEVEL=INFO
+LOG_FILE=database.log
+LOG_MAX_SIZE=10485760
+LOG_MAX_FILES=5
+
+# Application settings
+APP_NAME=DatabaseLibrary
+APP_ENV=development
+```
+
+### Environment Helper Methods
+
+```php
+use DatabaseLibrary\Utils\EnvLoader;
+
+// Load environment variables
+EnvLoader::load();
+
+// Get required variable (throws exception if not set)
+$password = EnvLoader::required('SUPABASE_PASSWORD');
+
+// Get optional variable with default
+$host = EnvLoader::get('SUPABASE_HOST', 'localhost');
+
+// Get boolean value
+$logEnabled = EnvLoader::bool('LOG_ENABLED', true);
+
+// Get integer value
+$timeout = EnvLoader::int('SUPABASE_TIMEOUT', 30);
+```
+
 ## Transactions
 
 ```php
@@ -216,16 +308,14 @@ $db->beginTransaction();
 
 try {
     // Insert user
-    $insertQuery = $db->queryBuilder('users')
-        ->buildInsert(['name' => 'John', 'email' => 'john@example.com']);
-    
-    $db->executeInsert($insertQuery, $db->queryBuilder('users')->getParams());
+    $insertBuilder = $db->queryBuilder('users');
+    $insertQuery = $insertBuilder->buildInsert(['name' => 'John', 'email' => 'john@example.com']);
+    $db->executeInsert($insertQuery, $insertBuilder->getParams());
     
     // Insert profile
-    $profileQuery = $db->queryBuilder('profiles')
-        ->buildInsert(['user_id' => $db->getLastInsertId(), 'bio' => 'Developer']);
-    
-    $db->executeInsert($profileQuery, $db->queryBuilder('profiles')->getParams());
+    $profileBuilder = $db->queryBuilder('profiles');
+    $profileQuery = $profileBuilder->buildInsert(['user_id' => $db->getLastInsertId(), 'bio' => 'Developer']);
+    $db->executeInsert($profileQuery, $profileBuilder->getParams());
     
     $db->commit();
     echo "Transaction completed successfully";
@@ -236,129 +326,25 @@ try {
 }
 ```
 
-## Stored Procedures
-
-```php
-// Execute stored procedure
-$result = $db->executeProcedure('get_user_stats', [123]);
-
-// With parameters
-$result = $db->executeProcedure('calculate_total', [100, 0.15, 'USD']);
-```
-
-## Advanced Query Builder
-
-### Complex Queries
-
-```php
-$queryBuilder = $db->queryBuilder('users');
-$query = $queryBuilder
-    ->select(['u.id', 'u.name', 'p.bio'])
-    ->join('profiles p', 'u.id = p.user_id', 'LEFT')
-    ->where('u.active', '=', true)
-    ->whereIn('u.role', ['admin', 'user'])
-    ->groupBy('u.id')
-    ->orderBy('u.created_at', 'DESC')
-    ->limit(20)
-    ->offset(0)
-    ->buildSelect();
-
-$users = $db->executeQuery($query, $queryBuilder->getParams());
-```
-
-### Supabase Query Builder with RETURNING
-
-```php
-// INSERT with RETURNING
-$supabaseBuilder = $db->supabaseQueryBuilder('users');
-$query = $supabaseBuilder->buildInsertWithReturning(
-    ['name' => 'John', 'email' => 'john@example.com'],
-    ['id', 'created_at']
-);
-
-$result = $db->getConnection()->execute($query, $supabaseBuilder->getParams());
-$userData = $result->fetchAll();
-
-// UPDATE with RETURNING
-$query = $supabaseBuilder
-    ->where('id', '=', 123)
-    ->buildUpdateWithReturning(['name' => 'John Updated'], ['id', 'name', 'updated_at']);
-
-$result = $db->getConnection()->execute($query, $supabaseBuilder->getParams());
-```
-
-## Configuration
-
-### Custom Configuration
-
-```php
-use DatabaseLibrary\Utils\Config;
-
-$config = new Config([
-    'host' => 'localhost',
-    'port' => '5432',
-    'database' => 'myapp',
-    'username' => 'myuser',
-    'password' => 'mypass',
-    'ssl_mode' => 'require',
-    'timeout' => 60,
-    'application_name' => 'MyApp'
-]);
-
-$db = DatabaseManager::createSupabaseFromConfig($config);
-```
-
-### Custom Logger
-
-```php
-use DatabaseLibrary\Utils\Logger;
-
-$logger = new Logger(
-    'custom.log',    // Log file
-    true,           // Enabled
-    'DEBUG',        // Log level
-    5242880,        // Max file size (5MB)
-    3               // Max files
-);
-
-$db = DatabaseManager::createSupabaseConnection(
-    'host', 'port', 'db', 'user', 'pass'
-)->setLogger($logger);
-```
-
-## Logging
-
-The library automatically logs all database operations:
-
-```php
-// Check log information
-$logger = $db->getLogger();
-echo "Log enabled: " . ($logger->isEnabled() ? 'true' : 'false') . "\n";
-echo "Log level: " . $logger->getLogLevel() . "\n";
-echo "Log file: " . $logger->getLogFile() . "\n";
-echo "Log size: " . $logger->getLogSize() . " bytes\n";
-
-// Get recent log entries
-$recentLogs = $logger->getLogContents(10);
-foreach ($recentLogs as $logEntry) {
-    echo trim($logEntry) . "\n";
-}
-```
-
-## Health Check
-
-```php
-$health = $db->healthCheck();
-echo "Connected: " . ($health['connected'] ? 'true' : 'false') . "\n";
-echo "In transaction: " . ($health['in_transaction'] ? 'true' : 'false') . "\n";
-echo "Ping time: " . $health['ping_time'] . "ms\n";
-```
-
 ## Security Features
 
-### SQL Injection Protection
+### Environment-Based Configuration
 
-The library uses prepared statements and input validation:
+```php
+// ✅ Secure - credentials from environment
+$db = DatabaseManager::createSupabaseFromUrl(
+    EnvLoader::required('SUPABASE_URL'),
+    EnvLoader::required('SUPABASE_PASSWORD')
+);
+
+// ❌ Insecure - hardcoded credentials
+$db = DatabaseManager::createSupabaseFromUrl(
+    'postgresql://postgres:password123@db.example.supabase.co:5432/postgres',
+    'password123'
+);
+```
+
+### SQL Injection Protection
 
 ```php
 // ✅ Safe - uses prepared statements
@@ -384,109 +370,45 @@ $queryBuilder = $db->queryBuilder("users; DROP TABLE users; --"); // ❌ Invalid
 $queryBuilder->where("id; DROP TABLE users; --", "=", 1); // ❌ Invalid
 ```
 
-## API Reference
+## Production Deployment
 
-### DatabaseManager
+### Docker
 
-#### Factory Methods
+```dockerfile
+FROM php:8.1-cli
 
-- `createSupabaseConnection($host, $port, $database, $username, $password, $options = [])`
-- `createSupabaseFromUrl($supabaseUrl, $password)`
-- `createSupabaseFromConfig(Config $config)`
-- `createFromEnvironment()`
+# Install required extensions
+RUN docker-php-ext-install pdo pdo_pgsql
 
-#### Connection Methods
+# Set environment variables
+ENV SUPABASE_HOST=db.your-project.supabase.co
+ENV SUPABASE_PASSWORD=your-secure-password
+ENV LOG_LEVEL=ERROR
+ENV APP_ENV=production
 
-- `connect(): bool` - Connect to database
-- `disconnect(): bool` - Disconnect from database
-- `isConnected(): bool` - Check connection status
+COPY . /app
+WORKDIR /app
 
-#### Query Execution
+RUN composer install --no-dev --optimize-autoloader
 
-- `executeQuery($query, $params = []): array` - Execute SELECT query
-- `executeInsert($query, $params = []): int` - Execute INSERT query
-- `executeUpdate($query, $params = []): int` - Execute UPDATE query
-- `executeDelete($query, $params = []): int` - Execute DELETE query
-- `executeProcedure($procedureName, $params = []): array` - Execute stored procedure
+CMD ["php", "your-app.php"]
+```
 
-#### Transaction Methods
+### System Environment Variables
 
-- `beginTransaction(): bool` - Start transaction
-- `commit(): bool` - Commit transaction
-- `rollback(): bool` - Rollback transaction
-- `inTransaction(): bool` - Check transaction status
-
-#### Utility Methods
-
-- `getLastInsertId(): string` - Get last insert ID
-- `getAffectedRows(): int` - Get affected rows count
-- `healthCheck(): array` - Get system health status
-- `queryBuilder($table): QueryBuilder` - Get query builder
-- `supabaseQueryBuilder($table): SupabaseQueryBuilder` - Get Supabase query builder
-
-### QueryBuilder
-
-#### Selection
-
-- `select($columns): self` - Set columns to select
-- `where($column, $operator, $value): self` - Add WHERE condition
-- `whereIn($column, $values): self` - Add WHERE IN condition
-- `join($table, $condition, $type = 'INNER'): self` - Add JOIN
-- `orderBy($column, $direction = 'ASC'): self` - Add ORDER BY
-- `groupBy($column): self` - Add GROUP BY
-- `limit($limit): self` - Add LIMIT
-- `offset($offset): self` - Add OFFSET
-
-#### Query Building
-
-- `buildSelect(): string` - Build SELECT query
-- `buildInsert($data): string` - Build INSERT query
-- `buildUpdate($data): string` - Build UPDATE query
-- `buildDelete(): string` - Build DELETE query
-- `getParams(): array` - Get query parameters
-- `reset(): self` - Reset builder
-
-### SupabaseQueryBuilder
-
-Extends QueryBuilder with Supabase-specific features:
-
-#### Supabase Features
-
-- `buildSelectWithSupabaseFilters(): string` - Build SELECT with Supabase filters
-- `buildInsertWithReturning($data, $returningColumns = ['*']): string` - INSERT with RETURNING
-- `buildUpdateWithReturning($data, $returningColumns = ['*']): string` - UPDATE with RETURNING
-- `buildDeleteWithReturning($returningColumns = ['*']): string` - DELETE with RETURNING
-
-#### Advanced Search
-
-- `fullTextSearch($column, $searchTerm): self` - Full-text search
-- `withinRadius($latColumn, $lngColumn, $lat, $lng, $radiusKm): self` - Geographic search
-- `whereJsonContains($column, $key, $value): self` - JSON field search
-- `whereJsonArrayContains($column, $value): self` - JSON array search
-- `whereILike($column, $pattern): self` - Case-insensitive search
-- `whereArrayOverlaps($column, $values): self` - Array overlap search
-
-## Error Handling
-
-The library provides comprehensive error handling:
-
-```php
-use DatabaseLibrary\Database\DatabaseException;
-
-try {
-    $db->connect();
-    $users = $db->executeQuery('SELECT * FROM users');
-} catch (DatabaseException $e) {
-    echo "Database error: " . $e->getMessage();
-} catch (\Exception $e) {
-    echo "General error: " . $e->getMessage();
-}
+```bash
+# Linux/macOS
+export SUPABASE_HOST="db.your-project.supabase.co"
+export SUPABASE_PASSWORD="your-secure-password"
+export LOG_LEVEL="ERROR"
+export APP_ENV="production"
 ```
 
 ## Examples
 
-See `example.php` for comprehensive usage examples including:
+See `example_supabase.php` for comprehensive usage examples including:
 
+- Environment-based configuration
 - Multiple connection methods
 - Query builder usage
 - Supabase-specific features
@@ -497,9 +419,19 @@ See `example.php` for comprehensive usage examples including:
 
 ## Requirements
 
-- PHP 8.4 or higher
+- PHP 8.1 or higher
 - PDO PostgreSQL extension
 - Composer (for autoloading)
+
+## Security Best Practices
+
+1. **Never commit `.env` files** - Always use `.env.example` templates
+2. **Use environment variables** in production
+3. **Rotate credentials regularly**
+4. **Use prepared statements** (automatic with this library)
+5. **Validate all inputs** (automatic identifier sanitization)
+6. **Monitor logs** for suspicious activity
+7. **Use SSL connections** (enabled by default for Supabase)
 
 ## License
 
@@ -516,3 +448,7 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For issues and questions, please open an issue on GitHub.
+
+---
+
+⚠️ **Important**: Always keep your `.env` file secure and never commit it to version control!

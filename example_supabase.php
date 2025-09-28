@@ -6,16 +6,21 @@ use DatabaseLibrary\DatabaseManager;
 use DatabaseLibrary\Database\Supabase\SupabaseQueryBuilder;
 use DatabaseLibrary\Utils\Config;
 use DatabaseLibrary\Utils\Logger;
+use DatabaseLibrary\Utils\EnvLoader;
 
-echo "=== Database Library Example - Tu Proyecto Supabase ===\n\n";
+echo "=== Database Library Example - Supabase Project ===\n\n";
 
 try {
-    // Configuración específica para tu proyecto
-    echo "1. Creando conexión a tu Supabase...\n";
-    $supabaseUrl = 'postgresql://postgres:Supabase.1184.1983@db.dpcrrmhfgedsoufmdcgq.supabase.co:5432/postgres';
-    $password = 'Supabase.1184.1983';
-
-
+    // Cargar variables de entorno
+    EnvLoader::load();
+    
+    // Configuración usando variables de entorno
+    echo "1. Creando conexión a Supabase...\n";
+    
+    // Método 1: Usando URL desde variable de entorno
+    $supabaseUrl = EnvLoader::required('SUPABASE_URL');
+    $password = EnvLoader::required('SUPABASE_PASSWORD');
+    
     $db = DatabaseManager::createSupabaseFromUrl($supabaseUrl, $password);
     echo "✓ Conexión creada exitosamente\n\n";
 
@@ -186,11 +191,11 @@ try {
     // Información de configuración
     echo "12. Información de configuración...\n";
     $config = $db->getConfig();
-    echo "Host: " . $config->get('host') . "\n";
-    echo "Puerto: " . $config->get('port') . "\n";
-    echo "Base de datos: " . $config->get('database') . "\n";
-    echo "Modo SSL: " . $config->get('ssl_mode') . "\n";
-    echo "Es Supabase: " . ($config->isSupabase() ? 'true' : 'false') . "\n\n";
+    echo "Host: " . EnvLoader::get('SUPABASE_HOST', 'not-set') . "\n";
+    echo "Puerto: " . EnvLoader::get('SUPABASE_PORT', 'not-set') . "\n";
+    echo "Base de datos: " . EnvLoader::get('SUPABASE_DATABASE', 'not-set') . "\n";
+    echo "Modo SSL: " . EnvLoader::get('SUPABASE_SSL_MODE', 'not-set') . "\n";
+    echo "Es Supabase: " . (strpos(EnvLoader::get('SUPABASE_HOST', ''), 'supabase') !== false ? 'true' : 'false') . "\n\n";
 
     // Desconectar
     echo "13. Desconectando...\n";
@@ -210,11 +215,12 @@ try {
 }
 
 echo "\n=== Información adicional ===\n";
-echo "Tu proyecto Supabase: https://dpcrrmhfgedsoufmdcgq.supabase.co\n";
-echo "Base de datos: postgres\n";
-echo "Host: db.dpcrrmhfgedsoufmdcgq.supabase.co\n";
-echo "Puerto: 5432\n";
-echo "Usuario: postgres\n";
-echo "Tabla de ejemplo creada: test_users\n";
-echo "Archivo de log: database.log\n";
+echo "Para usar este ejemplo:\n";
+echo "1. Copia .env.example a .env\n";
+echo "2. Configura tus credenciales de Supabase en .env\n";
+echo "3. Ejecuta: php example_supabase.php\n";
+echo "\n=== Variables de entorno requeridas ===\n";
+echo "SUPABASE_HOST - Host de tu proyecto Supabase\n";
+echo "SUPABASE_PASSWORD - Contraseña de tu base de datos\n";
+echo "SUPABASE_URL - URL completa de conexión\n";
 echo "\n=== ¡Todo listo! ===\n";

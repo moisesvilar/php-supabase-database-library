@@ -1,0 +1,25 @@
+{
+    "name": "php-boilerplate/database-library",
+    "description": "Vanilla PHP library for SQL database management with Supabase implementation",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Moises Vilar",
+            "email": "moises@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "DatabaseLibrary\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DatabaseLibrary\\Tests\\": "tests/"
+        }
+    }
+}
